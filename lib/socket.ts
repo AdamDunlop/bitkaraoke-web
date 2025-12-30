@@ -1,49 +1,39 @@
-// lib/socket.ts
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:3000";
+let socket: any = null;
 
-// Create socket with auto-reconnect
-const socket = io(SOCKET_URL, {
-  transports: ["polling", "websocket"],
-  reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 1000,
-  autoConnect: true,
-  forceNew: false,
-  path: '/socket.io/',
-  withCredentials: true,
-});
-
-// Debug: Log all events
-socket.onAny((event, ...args) => {
-  console.log(`📬 [Socket] "${event}"`, args.length ? args : '');
-});
-
-socket.on('connect', () => {
-  console.log('✅ Socket connected:', socket.id);
-  
-  // Auto-send login if we have username stored
-  const username = localStorage.getItem('username');
-  if (username) {
-    console.log('🔄 Auto-sending login for stored user:', username);
-    setTimeout(() => {
-      socket.emit('login', { username });
-    }, 100);
+export function getSocket() {
+  if (typeof window === 'undefined') {
+    // Server-side: return null or dummy socket
+    return null;
   }
-});
+  
+  if (!socket) {
+    console.log('🔄 Creating new socket connection...');
+    
+    socket = io('https://www.cyloware.com', {
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 10000,
+      withCredentials: true,
+      path: '/socket.io/',
+    });
+    
+    socket.on('connect', () => {
+      console.log('✅ Socket connected to server! ID:', socket.id);
+    });
+    
+    socket.on('connect_error', (err: any) => {
+      console.error('❌ Socket connection error:', err.message);
+    });
+    
+    socket.on('disconnect', (reason: string) => {
+      console.log('🔌 Socket disconnected:', reason);
+    });
+  }
+  
+  return socket;
+}
 
-socket.on('connect_error', (error) => {
-  console.error('❌ Socket connection error:', error.message);
-});
-
-socket.on('disconnect', (reason) => {
-  console.log('🔌 Socket disconnected:', reason);
-});
-
-// Store username when login is successful
-socket.on('activeUsers', (users) => {
-  console.log('👥 Server sent active users:', users);
-});
-
-export default socket;
+export default getSocket;
